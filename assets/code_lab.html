@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Code Lab — Players Launcher</title>
+<link rel="stylesheet" href="editor/bloxd-editor.css" />
+<style>
+  :root {
+    --bg: #10131a;
+    --panel: #161a23;
+    --panel-2: #1c2230;
+    --line: #2a3141;
+    --fg: #dfe6f2;
+    --muted: #8a94a8;
+    --accent: #4c8dff;
+    --ok: #46c07a;
+    --warn: #e0a33a;
+    --err: #e05a5a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 14px; margin: 0; font-weight: 600; letter-spacing: .3px; }
+  .badge {
+    font-size: 11px; color: var(--muted); border: 1px solid var(--line);
+    border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+  }
+  .spacer { flex: 1; }
+  button {
+    background: var(--panel-2); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 5px; padding: 4px 10px; cursor: pointer; font-size: 12px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: #1d3b6b; border-color: #2f5da3; }
+  main { flex: 1; display: flex; min-height: 0; }
+  aside {
+    width: 250px; flex: 0 0 250px; background: var(--panel);
+    border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0;
+  }
+  aside h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--line);
+  }
+  .file-actions { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  ul.snippets { list-style: none; margin: 0; padding: 4px 0; overflow-y: auto; flex: 1; }
+  ul.snippets li {
+    padding: 5px 12px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px;
+  }
+  ul.snippets li:hover { background: var(--panel-2); }
+  ul.snippets li.active { background: #1d3b6b; }
+  ul.snippets li span.size { color: var(--muted); font-size: 11px; }
+  .empty { padding: 12px; color: var(--muted); }
+  .editor-wrap { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  #host { flex: 1; min-height: 0; }
+  .status {
+    border-top: 1px solid var(--line); background: var(--panel);
+    display: flex; gap: 14px; align-items: center; padding: 6px 12px; font-size: 12px;
+  }
+  .status .ok { color: var(--ok); }
+  .status .bad { color: var(--err); }
+  .status .muted { color: var(--muted); }
+  .report {
+    max-height: 92px; overflow-y: auto; padding: 6px 12px; background: var(--panel-2);
+    border-top: 1px solid var(--line); font-size: 11px; color: var(--muted);
+  }
+  .report code { color: #9fd0ff; }
+  .name-input {
+    background: var(--panel-2); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 5px; padding: 4px 8px; font-size: 12px; width: 150px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Code Lab</h1>
+  <span class="badge" id="engine">engine —</span>
+  <span class="badge" id="vocab">vocabulary: …</span>
+  <span class="spacer"></span>
+  <input class="name-input" id="filename" placeholder="snippet name" />
+  <button id="btn-save">Save</button>
+  <button id="btn-saveas">Save as</button>
+  <button id="btn-new">New</button>
+  <button class="primary" id="btn-ai">Ask AI about this</button>
+</header>
+
+<main>
+  <aside>
+    <h2>Snippets</h2>
+    <div class="file-actions">
+      <button id="btn-open">Open</button>
+      <button id="btn-rename">Rename</button>
+      <button id="btn-delete">Delete</button>
+      <button id="btn-reload">Reload</button>
+      <button id="btn-folder">Folder</button>
+    </div>
+    <ul class="snippets" id="files"></ul>
+  </aside>
+
+  <section class="editor-wrap">
+    <div id="host"></div>
+    <div class="status">
+      <span id="train-ok" class="muted">ready</span>
+      <span id="train-size" class="muted">0 chars / 0 lines</span>
+      <span id="train-errors" class="muted">0 problems</span>
+      <span class="spacer"></span>
+      <span id="dirty" class="muted"></span>
+    </div>
+    <div class="report" id="report">trainReport: waiting for the first keystroke…</div>
+  </section>
+</main>
+
+<script src="editor/editor-core.js"></script>
+<script src="editor/bloxd-editor.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var core = window.BloxdEditorCore;
+  var api = null;
+  var current = '';
+  var dirty = false;
+
+  var el = {
+    files: document.getElementById('files'),
+    filename: document.getElementById('filename'),
+    engine: document.getElementById('engine'),
+    vocab: document.getElementById('vocab'),
+    report: document.getElementById('report'),
+    ok: document.getElementById('train-ok'),
+    size: document.getElementById('train-size'),
+    errors: document.getElementById('train-errors'),
+    dirty: document.getElementById('dirty')
+  };
+
+  function call(name, args) {
+    if (!api || typeof api[name] !== 'function') return Promise.resolve(null);
+    try {
+      return Promise.resolve(api[name].apply(api, args || []));
+    } catch (err) {
+      return Promise.resolve(null);
+    }
+  }
+
+  function kb(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  /* ---- editor ---------------------------------------------------------- */
+
+  var editor = window.BloxdEditor.createBloxdEditor(document.getElementById('host'), {
+    core: core,
+    debounce: 200,
+    value: "/* Paste Bloxd Code Block code here.\n   No // comments in Bloxd — use /* block comments */. */\napi.log('Players Launcher Code Lab')",
+    onTrain: function (report) {
+      renderReport(report);
+      if (api) { try { api.report(report); } catch (e) { /* ignore */ } }
+    }
+  });
+  window.labEditor = editor;
+
+  function renderReport(report) {
+    if (!report || !report.stats) return;
+    var stats = report.stats;
+    el.size.textContent = stats.chars + ' / ' + core.MAX_CHARS + ' chars  ·  ' +
+      stats.lines + ' / ' + core.MAX_LINES + ' lines';
+    var diags = core.validateSource(editor.getValue(), editor.getVocabulary());
+    var errs = diags.filter(function (d) { return d.severity === 'error'; }).length;
+    var warns = diags.length - errs;
+    el.errors.textContent = errs + ' error(s), ' + warns + ' warning(s)';
+    el.errors.className = errs ? 'bad' : 'muted';
+    el.ok.textContent = report.ok ? 'trainReport: ok' : 'trainReport: blocked';
+    el.ok.className = report.ok ? 'ok' : 'bad';
+    var calls = (stats.apiCalls || []).map(function (c) { return '<code>api.' + c + '</code>'; }).join(' ');
+    el.report.innerHTML =
+      '<strong>trainReport</strong> — ok=' + report.ok + ' · errors=' + (report.errors || []).length +
+      ' · chars=' + stats.chars + ' · lines=' + stats.lines + '<br />api calls: ' +
+      (calls || '<em>none yet</em>');
+  }
+
+  editor.textarea.addEventListener('input', function () {
+    dirty = true;
+    el.dirty.textContent = current ? current + (dirty ? ' •' : '') : 'untitled';
+  });
+
+  /* ---- vocabulary ------------------------------------------------------ */
+
+  function pyFetcher(url) {
+    return call('http_get', [url]).then(function (res) {
+      if (!res) throw new Error('no response');
+      return {
+        text: function () { return Promise.resolve(res.text || ''); },
+        json: function () {
+          try { return Promise.resolve(JSON.parse(res.text || '')); }
+          catch (e) { return Promise.reject(e); }
+        }
+      };
+    });
+  }
+
+  function loadVocabulary() {
+    call('get_cached_vocab', []).then(function (cached) {
+      if (cached && cached.functions && cached.functions.length) {
+        editor.setVocabulary(cached);
+        el.vocab.textContent = 'vocabulary: cache (' + cached.functions.length + ' fn)';
+      }
+      if (typeof core.loadApiVocabulary !== 'function') return;
+      el.vocab.textContent = 'vocabulary: loading…';
+      var fetcher = (api && typeof api.http_get === 'function') ? pyFetcher : null;
+      var promise = core.loadApiVocabulary(fetcher || undefined);
+      if (!promise || typeof promise.then !== 'function') return;
+      promise.then(function (vocab) {
+        editor.setVocabulary(vocab);
+        var n = (vocab.functions || []).length;
+        el.vocab.textContent = 'vocabulary: Bloxdy/code-api (' + n + ' fn)';
+        call('save_vocab', [vocab]);
+      }).catch(function () {
+        el.vocab.textContent = 'vocabulary: offline (built-in fallback)';
+      });
+    });
+  }
+
+  /* ---- snippet files --------------------------------------------------- */
+
+  function markActive(name) {
+    var items = el.files.querySelectorAll('li');
+    for (var i = 0; i < items.length; i++) {
+      items[i].className = items[i].getAttribute('data-name') === name ? 'active' : '';
+    }
+  }
+
+  function refreshFiles(select) {
+    return call('list_snippets', []).then(function (list) {
+      el.files.innerHTML = '';
+      if (!list || !list.length) {
+        var li = document.createElement('li');
+        li.className = 'empty';
+        li.textContent = 'No snippets yet — write some code and press Save.';
+        el.files.appendChild(li);
+        return;
+      }
+      list.forEach(function (entry) {
+        var li = document.createElement('li');
+        li.setAttribute('data-name', entry.name);
+        var left = document.createElement('span');
+        left.textContent = entry.name;
+        var right = document.createElement('span');
+        right.className = 'size';
+        right.textContent = kb(entry.bytes || 0);
+        li.appendChild(left);
+        li.appendChild(right);
+        li.addEventListener('click', function () { openFile(entry.name); });
+        el.files.appendChild(li);
+      });
+      if (select) markActive(select);
+    });
+  }
+
+  function openFile(name) {
+    call('read_snippet', [name]).then(function (source) {
+      if (typeof source !== 'string') return;
+      editor.setValue(source);
+      current = name;
+      dirty = false;
+      el.filename.value = name;
+      el.dirty.textContent = name;
+      markActive(name);
+      call('set_current', [name]);
+      editor.focus();
+    });
+  }
+
+  function doSave(as) {
+    var name = (el.filename.value || '').trim() || current;
+    if (as || !name) {
+      var suggested = name || 'snippet';
+      var typed = window.prompt('Save snippet as (no .js needed):', suggested);
+      if (!typed) return;
+      name = typed;
+    }
+    call('write_snippet', [name, editor.getValue()]).then(function (res) {
+      if (!res || !res.ok) { window.alert('Save failed: ' + ((res && res.message) || 'unknown error')); return; }
+      current = res.name;
+      dirty = false;
+      el.filename.value = res.name;
+      el.dirty.textContent = res.name;
+      refreshFiles(res.name);
+    });
+  }
+
+  /* ---- wiring ---------------------------------------------------------- */
+
+  document.getElementById('btn-save').addEventListener('click', function () { doSave(false); });
+  document.getElementById('btn-saveas').addEventListener('click', function () { doSave(true); });
+  document.getElementById('btn-new').addEventListener('click', function () {
+    editor.setValue('');
+    current = '';
+    dirty = false;
+    el.filename.value = '';
+    el.dirty.textContent = 'untitled';
+    markActive('');
+    editor.focus();
+  });
+  document.getElementById('btn-open').addEventListener('click', function () {
+    if (current) openFile(current);
+  });
+  document.getElementById('btn-rename').addEventListener('click', function () {
+    if (!current) return;
+    var typed = window.prompt('Rename snippet:', current);
+    if (!typed || typed === current) return;
+    call('rename_snippet', [current, typed]).then(function (res) {
+      if (res && res.ok) { current = res.name; el.filename.value = res.name; refreshFiles(res.name); }
+    });
+  });
+  document.getElementById('btn-delete').addEventListener('click', function () {
+    if (!current) return;
+    if (!window.confirm('Delete snippet "' + current + '"?')) return;
+    call('delete_snippet', [current]).then(function () {
+      current = '';
+      el.filename.value = '';
+      el.dirty.textContent = '';
+      refreshFiles();
+    });
+  });
+  document.getElementById('btn-reload').addEventListener('click', function () { refreshFiles(current); });
+  document.getElementById('btn-folder').addEventListener('click', function () { call('open_data_dir', []); });
+  document.getElementById('btn-ai').addEventListener('click', function () {
+    call('ask_ai', [editor.getValue()]);
+  });
+
+  function boot() {
+    api = window.pywebview && window.pywebview.api ? window.pywebview.api : null;
+    el.engine.textContent = 'engine v' + core.VERSION + ' (vendored)';
+    loadVocabulary();
+    call('get_current', []).then(function (name) {
+      if (name) { el.filename.value = name; current = name; }
+      refreshFiles(current);
+      call('ready', []).then(function (info) {
+        if (info && info.current) openFile(info.current);
+      });
+    });
+  }
+
+  window.addEventListener('pywebviewready', boot);
+  if (window.pywebview && window.pywebview.api) boot();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Players Launcher — runtime dependencies.
+# Deliberately tiny: no bundler, no node, no Qt, no Electron.
+pywebview>=4.4          # Code Lab webview + embedded Bloxd.io player window
+requests>=2.31          # HTTP for the API-vocabulary fetcher / AI providers
+markdown>=3.5           # local markdown rendering on the Docs tab

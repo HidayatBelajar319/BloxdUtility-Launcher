@@ -1,0 +1,40 @@
+# Secrets — config.json holds the AI keys, it never belongs in the repo.
+config.json
+*.config.json
+secrets.json
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Tooling / editors
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Launcher runtime output
+logs/
+*.log
+mods/
+snippets/
+docs/
+cache/

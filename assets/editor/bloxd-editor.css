@@ -1,0 +1,314 @@
+/* ------------------------------------------------------------------------- *
+ * Bloxd Editor — bloxd-editor.css
+ * Dark theme driven entirely by CSS variables, so a host app (CLI web view or
+ * the Launcher Code Lab) can re-skin the editor without touching the editor.
+ * ------------------------------------------------------------------------- */
+
+.bloxd-editor {
+  /* Surfaces */
+  --bloxd-editor-bg: #14171f;
+  --bloxd-editor-bg-alt: #1b1f2a;
+  --bloxd-editor-fg: #d7dced;
+  --bloxd-editor-muted: #7d879c;
+  --bloxd-editor-border: #2a3040;
+  --bloxd-editor-gutter-bg: #171b24;
+  --bloxd-editor-gutter-fg: #4c5568;
+  --bloxd-editor-gutter-active: #aab4c8;
+  --bloxd-editor-selection: rgba(90, 140, 255, 0.28);
+  --bloxd-editor-caret: #7cc4ff;
+
+  /* Token colours */
+  --bloxd-editor-keyword: #c792ea;
+  --bloxd-editor-string: #9ece6a;
+  --bloxd-editor-comment: #5b6478;
+  --bloxd-editor-api: #7cc4ff;
+  --bloxd-editor-number: #ff9e64;
+  --bloxd-editor-plain: inherit;
+
+  /* Status */
+  --bloxd-editor-error: #ff6b6b;
+  --bloxd-editor-warning: #ffcc66;
+  --bloxd-editor-ok: #7bd88f;
+
+  /* Popup */
+  --bloxd-editor-popup-bg: #1e2330;
+  --bloxd-editor-popup-border: #39415a;
+  --bloxd-editor-popup-active: #2d3549;
+  --bloxd-editor-popup-shadow: rgba(0, 0, 0, 0.55);
+
+  /* Metrics — the <pre> overlay and the <textarea> MUST share these exactly */
+  --bloxd-editor-font: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --bloxd-editor-font-size: 13px;
+  --bloxd-editor-line-height: 20px;
+  --bloxd-editor-pad-y: 10px;
+  --bloxd-editor-pad-x: 12px;
+  --bloxd-editor-gutter-width: 46px;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  background: var(--bloxd-editor-bg);
+  color: var(--bloxd-editor-fg);
+  border: 1px solid var(--bloxd-editor-border);
+  border-radius: 8px;
+  font-family: var(--bloxd-editor-font);
+  font-size: var(--bloxd-editor-font-size);
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- toolbar --- */
+
+.bloxd-editor__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  background: var(--bloxd-editor-bg-alt);
+  border-bottom: 1px solid var(--bloxd-editor-border);
+  user-select: none;
+}
+
+.bloxd-editor__title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bloxd-editor-muted);
+}
+
+.bloxd-editor__counts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bloxd-editor__stat {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--bloxd-editor-border);
+  color: var(--bloxd-editor-muted);
+}
+
+.bloxd-editor__stat--ok { color: var(--bloxd-editor-ok); border-color: rgba(123, 216, 143, 0.35); }
+.bloxd-editor__stat--warning { color: var(--bloxd-editor-warning); border-color: rgba(255, 204, 102, 0.35); }
+.bloxd-editor__stat--error { color: var(--bloxd-editor-error); border-color: rgba(255, 107, 107, 0.45); }
+
+/* ----------------------------------------------------------- code area --- */
+
+.bloxd-editor__body {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bloxd-editor__gutter {
+  flex: 0 0 var(--bloxd-editor-gutter-width);
+  width: var(--bloxd-editor-gutter-width);
+  padding: var(--bloxd-editor-pad-y) 0;
+  background: var(--bloxd-editor-gutter-bg);
+  border-right: 1px solid var(--bloxd-editor-border);
+  color: var(--bloxd-editor-gutter-fg);
+  text-align: right;
+  overflow: hidden;
+  user-select: none;
+}
+
+.bloxd-editor__line-number {
+  padding: 0 8px 0 4px;
+  line-height: var(--bloxd-editor-line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+.bloxd-editor__line-number--warning { color: var(--bloxd-editor-warning); }
+.bloxd-editor__line-number--error {
+  color: var(--bloxd-editor-error);
+  font-weight: 700;
+  background: rgba(255, 107, 107, 0.12);
+}
+
+.bloxd-editor__code {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.bloxd-editor__highlight,
+.bloxd-editor__input {
+  margin: 0;
+  padding: var(--bloxd-editor-pad-y) var(--bloxd-editor-pad-x);
+  border: 0;
+  font-family: var(--bloxd-editor-font);
+  font-size: var(--bloxd-editor-font-size);
+  line-height: var(--bloxd-editor-line-height);
+  tab-size: 4;
+  white-space: pre;
+  overflow: auto;
+}
+
+.bloxd-editor__highlight {
+  position: absolute;
+  inset: 0;
+  color: var(--bloxd-editor-fg);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bloxd-editor__input {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--bloxd-editor-caret);
+  outline: none;
+  z-index: 1;
+}
+
+.bloxd-editor__input::placeholder {
+  color: var(--bloxd-editor-gutter-fg);
+}
+
+.bloxd-editor__input::selection {
+  background: var(--bloxd-editor-selection);
+  color: transparent;
+}
+
+.bloxd-editor__mirror {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------- tokens --- */
+
+.bloxd-editor__tok--keyword { color: var(--bloxd-editor-keyword); }
+.bloxd-editor__tok--string { color: var(--bloxd-editor-string); }
+.bloxd-editor__tok--comment {
+  color: var(--bloxd-editor-comment);
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 107, 107, 0.55);
+}
+.bloxd-editor__tok--api { color: var(--bloxd-editor-api); font-weight: 600; }
+.bloxd-editor__tok--number { color: var(--bloxd-editor-number); }
+.bloxd-editor__tok--plain { color: var(--bloxd-editor-plain); }
+
+/* ------------------------------------------------------------- problems --- */
+
+.bloxd-editor__problems {
+  max-height: 120px;
+  overflow: auto;
+  padding: 6px 8px;
+  background: var(--bloxd-editor-bg-alt);
+  border-top: 1px solid var(--bloxd-editor-border);
+}
+
+.bloxd-editor__problems[hidden] { display: none; }
+
+.bloxd-editor__problems-head {
+  font-size: 11px;
+  color: var(--bloxd-editor-muted);
+  margin-bottom: 4px;
+}
+
+.bloxd-editor__problem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 2px 6px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--bloxd-editor-fg);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.bloxd-editor__problem:hover { background: var(--bloxd-editor-popup-active); }
+.bloxd-editor__problem--error { border-left-color: var(--bloxd-editor-error); }
+.bloxd-editor__problem--warning { border-left-color: var(--bloxd-editor-warning); }
+.bloxd-editor__problem-more { font-size: 11px; color: var(--bloxd-editor-muted); padding: 2px 6px; }
+
+/* ---------------------------------------------------------------- popup --- */
+
+.bloxd-editor__popup {
+  position: absolute;
+  z-index: 20;
+  min-width: 240px;
+  max-width: 460px;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--bloxd-editor-popup-bg);
+  border: 1px solid var(--bloxd-editor-popup-border);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px var(--bloxd-editor-popup-shadow);
+}
+
+.bloxd-editor__popup[hidden] { display: none; }
+
+.bloxd-editor__popup-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+}
+
+.bloxd-editor__popup-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bloxd-editor__popup-item.is-active {
+  background: var(--bloxd-editor-popup-active);
+}
+
+.bloxd-editor__popup-kind {
+  flex: 0 0 auto;
+  min-width: 56px;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--bloxd-editor-popup-border);
+  color: var(--bloxd-editor-muted);
+}
+
+.bloxd-editor__popup-kind--function { color: var(--bloxd-editor-api); }
+.bloxd-editor__popup-kind--block { color: var(--bloxd-editor-string); }
+.bloxd-editor__popup-kind--item { color: var(--bloxd-editor-number); }
+.bloxd-editor__popup-kind--callback { color: var(--bloxd-editor-keyword); }
+.bloxd-editor__popup-kind--keyword { color: var(--bloxd-editor-muted); }
+
+.bloxd-editor__popup-label {
+  flex: 0 0 auto;
+  color: var(--bloxd-editor-fg);
+}
+
+.bloxd-editor__popup-detail {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--bloxd-editor-muted);
+  font-size: 11.5px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bloxd-editor__popup-item { transition: background-color 80ms linear; }
+}
